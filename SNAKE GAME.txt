@@ -1,0 +1,185 @@
+SNAKE GAME 
+
+import pygame
+import random
+import sys
+
+# Initialize Pygame
+pygame.init()
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (220, 20, 60)
+GREEN = (0, 255, 0)
+DARK_GREEN = (0, 155, 0)
+GRAY = (100, 100, 100)
+
+# Game settings
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 400
+CELL_SIZE = 20
+
+assert SCREEN_WIDTH % CELL_SIZE == 0, "Window width must be a multiple of cell size."
+assert SCREEN_HEIGHT % CELL_SIZE == 0, "Window height must be a multiple of cell size."
+
+CELL_WIDTH = SCREEN_WIDTH // CELL_SIZE
+CELL_HEIGHT = SCREEN_HEIGHT // CELL_SIZE
+
+# Directions
+UP = 'up'
+DOWN = 'down'
+LEFT = 'left'
+RIGHT = 'right'
+
+# Setup the screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption('Snake Game - Python')
+
+# Clock
+clock = pygame.time.Clock()
+FPS = 10  # Speed of the snake
+
+# Fonts
+font = pygame.font.SysFont('consolas', 24)
+
+def draw_grid():
+    for x in range(0, SCREEN_WIDTH, CELL_SIZE):
+        pygame.draw.line(screen, GRAY, (x, 0), (x, SCREEN_HEIGHT))
+    for y in range(0, SCREEN_HEIGHT, CELL_SIZE):
+        pygame.draw.line(screen, GRAY, (0, y), (SCREEN_WIDTH, y))
+
+def draw_snake(snake_coords):
+    for coord in snake_coords:
+        x = coord['x'] * CELL_SIZE
+        y = coord['y'] * CELL_SIZE
+        snake_segment_rect = pygame.Rect(x, y, CELL_SIZE, CELL_SIZE)
+        pygame.draw.rect(screen, DARK_GREEN, snake_segment_rect)
+        pygame.draw.rect(screen, GREEN, snake_segment_rect.inflate(-4, -4))
+
+def draw_food(food_coord):
+    x = food_coord['x'] * CELL_SIZE
+    y = food_coord['y'] * CELL_SIZE
+    food_rect = pygame.Rect(x, y, CELL_SIZE, CELL_SIZE)
+    pygame.draw.rect(screen, RED, food_rect)
+
+def show_score(score):
+    score_surface = font.render(f'Score: {score}', True, BLACK)
+    score_rect = score_surface.get_rect()
+    score_rect.topleft = (10, 10)
+    screen.blit(score_surface, score_rect)
+
+def game_over_screen(score):
+    screen.fill(WHITE)
+    game_over_font = pygame.font.SysFont('consolas', 48)
+    game_over_surf = game_over_font.render('Game Over', True, RED)
+    game_over_rect = game_over_surf.get_rect()
+    game_over_rect.midtop = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4)
+    screen.blit(game_over_surf, game_over_rect)
+
+    score_font = pygame.font.SysFont('consolas', 30)
+    score_surf = score_font.render(f'Your Score: {score}', True, BLACK)
+    score_rect = score_surf.get_rect()
+    score_rect.midtop = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+    screen.blit(score_surf, score_rect)
+
+    instruct_font = pygame.font.SysFont('consolas', 24)
+    instruct_surf = instruct_font.render('Press Q to Quit or R to Restart', True, BLACK)
+    instruct_rect = instruct_surf.get_rect()
+    instruct_rect.midtop = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 1.5)
+    screen.blit(instruct_surf, instruct_rect)
+
+    pygame.display.flip()
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    pygame.quit()
+                    sys.exit()
+                elif event.key == pygame.K_r:
+                    main()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+
+def main():
+    # Initial snake position and body coordinates
+    snake_coords = [{'x': CELL_WIDTH // 2, 'y': CELL_HEIGHT // 2},
+                    {'x': (CELL_WIDTH // 2) - 1, 'y': CELL_HEIGHT // 2},
+                    {'x': (CELL_WIDTH // 2) - 2, 'y': CELL_HEIGHT // 2}]
+    direction = RIGHT
+
+    # Place the first food in a random position not occupied by the snake
+    def get_random_food_position():
+        while True:
+            x = random.randint(0, CELL_WIDTH - 1)
+            y = random.randint(0, CELL_HEIGHT - 1)
+            if {'x': x, 'y': y} not in snake_coords:
+                return {'x': x, 'y': y}
+
+    food = get_random_food_position()
+
+    score = 0
+
+    while True:
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if (event.key == pygame.K_LEFT or event.key == pygame.K_a) and direction != RIGHT:
+                    direction = LEFT
+                elif (event.key == pygame.K_RIGHT or event.key == pygame.K_d) and direction != LEFT:
+                    direction = RIGHT
+                elif (event.key == pygame.K_UP or event.key == pygame.K_w) and direction != DOWN:
+                    direction = UP
+                elif (event.key == pygame.K_DOWN or event.key == pygame.K_s) and direction != UP:
+                    direction = DOWN
+
+        # Move the snake
+        head = snake_coords[0].copy()
+
+        if direction == UP:
+            head['y'] -= 1
+        elif direction == DOWN:
+            head['y'] += 1
+        elif direction == LEFT:
+            head['x'] -= 1
+        elif direction == RIGHT:
+            head['x'] += 1
+
+        # Check for collisions with walls
+        if head['x'] < 0 or head['x'] >= CELL_WIDTH or head['y'] < 0 or head['y'] >= CELL_HEIGHT:
+            game_over_screen(score)
+
+        # Check for collisions with itself
+        if head in snake_coords:
+            game_over_screen(score)
+
+        # Insert new head
+        snake_coords.insert(0, head)
+
+        # Check if snake ate food
+        if head == food:
+            score += 1
+            food = get_random_food_position()
+        else:
+            # Remove tail segment
+            snake_coords.pop()
+
+        # Draw everything
+        screen.fill(WHITE)
+        draw_grid()
+        draw_snake(snake_coords)
+        draw_food(food)
+        show_score(score)
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+if __name__ == '__main__':
+    main()
+
